@@ -111,24 +111,27 @@ pub fn spawn_encode_thread(
             }
 
             let ptt = ptt_active.load(Ordering::Relaxed);
-            if ptt {
+            let config = config_arc.lock().unwrap().clone();
+            let packets = pipeline.process(
+                config.transmission_mode,
+                config.vad_threshold,
+                ptt,
+                &aec_rx,
+            );
+
+            if !packets.is_empty() {
                 if !was_ptt {
                     was_ptt = true;
                 }
-                for packet in pipeline.process(true, &aec_rx) {
+                for packet in packets {
                     let _ = network_tx.try_send(packet);
                 }
-            } else {
-                if was_ptt {
-                    was_ptt = false;
-                    // Send an empty packet to signal end of transmission.
-                    let _ = network_tx.try_send(AudioPacket::new(heapless::Vec::new(), true));
-                    // Reset encoder state for a fresh start on next PTT
-                    pipeline.reset_encoder();
-                }
-                // Even if not sending, we still process the capture data to keep AEC synced
-                // and consume any pending reference frames.
-                pipeline.process(false, &aec_rx);
+            } else if was_ptt {
+                was_ptt = false;
+                // Send an empty packet to signal end of transmission.
+                let _ = network_tx.try_send(AudioPacket::new(heapless::Vec::new(), true));
+                // Reset encoder state for a fresh start on next transmission
+                pipeline.reset_encoder();
             }
         }
     });

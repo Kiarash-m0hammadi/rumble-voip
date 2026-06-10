@@ -314,3 +314,5 @@ pub fn list_audio_input_devices() -> Vec<AudioDevice> {
 pub fn list_audio_output_devices() -> Vec<AudioDevice> {
     audio::list_output_devices()
 }
+
+pub use crate::mumble::config::TransmissionMode;

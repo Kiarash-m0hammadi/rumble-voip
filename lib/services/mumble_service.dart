@@ -634,8 +634,29 @@ class MumbleService extends ChangeNotifier with dumble.MumbleClientListener {
     int? playbackHwBufferMs,
     String? captureDeviceId,
     String? playbackDeviceId,
+    TransmissionMode? transmissionMode,
+    double? vadThreshold,
   }) async {
+    TransmissionMode actualMode;
+    if (transmissionMode != null) {
+      actualMode = transmissionMode;
+    } else {
+      final modeIdx = _settings.transmissionMode;
+      if (modeIdx == 0) {
+        actualMode = TransmissionMode.pushToTalk;
+      } else if (modeIdx == 1) {
+        actualMode = TransmissionMode.continuous;
+      } else {
+        // Auto-Activate
+        actualMode = _settings.vadMethod == 0
+            ? TransmissionMode.vadThreshold
+            : TransmissionMode.vadAuto;
+      }
+    }
+
     final bridgeConfig = MumbleConfig(
+      transmissionMode: actualMode,
+      vadThreshold: vadThreshold ?? _settings.vadThreshold,
       outgoingAudioBitrate: outgoingAudioBitrate ?? bitrate ?? _settings.outgoingAudioBitrate,
       outgoingAudioMsPerPacket: outgoingAudioMsPerPacket ?? msPerPacket ?? _settings.outgoingAudioMsPerPacket,
       incomingJitterBufferMs: incomingJitterBufferMs ?? jitterBuffer ?? _settings.incomingJitterBufferMs,

@@ -23,6 +23,7 @@ webpki-roots = "1.0.6"
 
 # Audio Processing
 cpal = "0.17.3"
+fvad = "0.1.3"
 sonora = "0.1"
 sonora-common-audio = "0.1.0"
 opus-head-sys = "0.1.0"
