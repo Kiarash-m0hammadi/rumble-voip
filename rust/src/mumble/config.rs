@@ -5,8 +5,19 @@ use std::sync::Arc;
 pub type RbProducer = ringbuf::wrap::caching::Caching<Arc<SharedRb<Heap<f32>>>, true, false>;
 pub type RbConsumer = ringbuf::wrap::caching::Caching<Arc<SharedRb<Heap<f32>>>, false, true>;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TransmissionMode {
+    PushToTalk,
+    Continuous,
+    VADThreshold,
+    VADAuto,
+}
+
 #[derive(Debug, Clone)]
 pub struct MumbleConfig {
+    pub transmission_mode: TransmissionMode,
+    /// Threshold for VADThreshold mode (0.0 to 1.0)
+    pub vad_threshold: f32,
     /// Target bitrate for the Opus encoder in bits per second (e.g. 72000).
     pub outgoing_audio_bitrate: u32,
     /// The size of audio chunks sent over the network in milliseconds (e.g. 10ms or 20ms).
@@ -33,6 +44,8 @@ pub struct MumbleConfig {
 impl Default for MumbleConfig {
     fn default() -> Self {
         Self {
+            transmission_mode: TransmissionMode::PushToTalk,
+            vad_threshold: 0.1,
             outgoing_audio_bitrate: 72000,
             outgoing_audio_ms_per_packet: 10,
             incoming_jitter_buffer_ms: 40,

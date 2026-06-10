@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:rumble/services/mumble_service.dart';
 import 'package:rumble/services/settings_service.dart';
+import 'package:rumble/src/rust/api/client.dart';
 import 'package:rumble/src/rust/mumble/hardware/audio.dart';
 import 'package:shadcn_ui/shadcn_ui.dart';
 import 'package:rumble/components/rumble_tooltip.dart';
@@ -150,6 +151,105 @@ class AudioInputTab extends StatelessWidget {
           ),
           const SizedBox(height: 24),
           const Text(
+            'Transmission Mode',
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 12),
+          RumbleTooltip(
+            message: 'Choose how your voice is transmitted',
+            child: ShadTabs<int>(
+              value: settings.transmissionMode,
+              onChanged: (v) {
+                settings.setTransmissionMode(v);
+                mumbleService.updateAudioSettings();
+                onUpdate(() {});
+              },
+              tabs: [
+                ShadTab(
+                  value: 0,
+                  child: const Text('PTT'),
+                ),
+                ShadTab(
+                  value: 1,
+                  child: const Text('Always Send'),
+                ),
+                ShadTab(
+                  value: 2,
+                  child: const Text('Auto-Activate'),
+                ),
+              ],
+            ),
+          ),
+          if (settings.transmissionMode == 2) ...[
+            const SizedBox(height: 24),
+            const Text(
+              'Activation Method',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 12),
+            RumbleTooltip(
+              message: 'Choose the method for automatic activation',
+              child: ShadTabs<int>(
+                value: settings.vadMethod,
+                onChanged: (v) {
+                  settings.setVadMethod(v);
+                  mumbleService.updateAudioSettings();
+                  onUpdate(() {});
+                },
+                tabs: [
+                  ShadTab(
+                    value: 0,
+                    child: const Text('Threshold'),
+                  ),
+                  ShadTab(
+                    value: 1,
+                    child: const Text('AI (WebRTC)'),
+                  ),
+                ],
+              ),
+            ),
+          ],
+          if (settings.transmissionMode == 2 && settings.vadMethod == 0) ...[
+            const SizedBox(height: 24),
+            const Text(
+              'VAD Threshold',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: RumbleTooltip(
+                    message: 'Adjust the sensitivity of voice detection',
+                    child: SizedBox(
+                      height: 48,
+                      child: ShadSlider(
+                        initialValue: settings.vadThreshold,
+                        min: 0.0,
+                        max: 1.0,
+                        thumbRadius: 10,
+                        onChanged: (v) {
+                          settings.setVadThreshold(v);
+                          mumbleService.updateAudioSettings(vadThreshold: v);
+                          onUpdate(() {});
+                        },
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                SizedBox(
+                  width: 60,
+                  child: Text(
+                    '${(settings.vadThreshold * 100).round()}%',
+                    style: theme.textTheme.muted,
+                  ),
+                ),
+              ],
+            ),
+          ],
+          const SizedBox(height: 24),
+          const Text(
             'Input Gain',
             style: TextStyle(fontWeight: FontWeight.bold),
           ),
@@ -270,7 +370,12 @@ class AudioInputTab extends StatelessWidget {
             child: ValueListenableBuilder<double>(
               valueListenable: mumbleService.volumeNotifier,
               builder: (context, volume, child) {
-                final displayVolume = (volume * volumeMultiplier).clamp(0.0, 1.0);
+                final displayVolume =
+                    (volume * volumeMultiplier).clamp(0.0, 1.0);
+                final threshold = settings.vadThreshold;
+                final isThresholdMode =
+                    settings.transmissionMode == 2 && settings.vadMethod == 0;
+
                 return Container(
                   height: 24,
                   width: double.infinity,
@@ -292,6 +397,26 @@ class AudioInputTab extends StatelessWidget {
                           ),
                         ),
                       ),
+                      if (isThresholdMode)
+                        Positioned.fill(
+                          child: LayoutBuilder(
+                            builder: (context, constraints) {
+                              return Stack(
+                                children: [
+                                  Positioned(
+                                    left: threshold * constraints.maxWidth,
+                                    top: 0,
+                                    bottom: 0,
+                                    child: Container(
+                                      width: 2,
+                                      color: Colors.redAccent,
+                                    ),
+                                  ),
+                                ],
+                              );
+                            },
+                          ),
+                        ),
                     ],
                   ),
                 );

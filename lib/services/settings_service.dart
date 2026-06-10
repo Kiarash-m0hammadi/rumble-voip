@@ -31,6 +31,9 @@ class SettingsService extends ChangeNotifier {
   static const String _kHideEmptyChannels = 'hide_empty_channels';
   static const String _kPttHoldMs = 'ptt_hold_ms';
   static const String _kPtStartDelayMs = 'ptt_start_delay_ms';
+  static const String _kTransmissionMode = 'transmission_mode';
+  static const String _kVadMethod = 'vad_method';
+  static const String _kVadThreshold = 'vad_threshold';
 
   final SharedPreferences _prefs;
 
@@ -56,6 +59,9 @@ class SettingsService extends ChangeNotifier {
   bool _hideEmptyChannels;
   int _pttHoldMs;
   int _pttStartDelayMs;
+  int _transmissionMode; // 0: PTT, 1: Always Send, 2: Auto-Activate
+  int _vadMethod; // 0: Threshold, 1: AI
+  double _vadThreshold;
 
   SettingsService(this._prefs)
     : _pttKey = PttKey.values[_prefs.getInt(_kPttKey) ?? 0],
@@ -77,6 +83,9 @@ class SettingsService extends ChangeNotifier {
       _hideEmptyChannels = _prefs.getBool(_kHideEmptyChannels) ?? false,
       _pttHoldMs = _prefs.getInt(_kPttHoldMs) ?? 200,
       _pttStartDelayMs = _prefs.getInt(_kPtStartDelayMs) ?? 0,
+      _transmissionMode = _prefs.getInt(_kTransmissionMode) ?? 0,
+      _vadMethod = _prefs.getInt(_kVadMethod) ?? 0,
+      _vadThreshold = _prefs.getDouble(_kVadThreshold) ?? 0.1,
       _hotkeyBindings = [],
       _userVolumes = {} {
     // Load user volumes
@@ -139,6 +148,9 @@ class SettingsService extends ChangeNotifier {
   bool get hideEmptyChannels => _hideEmptyChannels;
   int get pttHoldMs => _pttHoldMs;
   int get pttStartDelayMs => _pttStartDelayMs;
+  int get transmissionMode => _transmissionMode;
+  int get vadMethod => _vadMethod;
+  double get vadThreshold => _vadThreshold;
   List<Map<String, dynamic>> get hotkeyBindings => List.unmodifiable(_hotkeyBindings);
   Map<String, double> get userVolumes => Map.unmodifiable(_userVolumes);
 
@@ -346,6 +358,24 @@ class SettingsService extends ChangeNotifier {
   Future<void> setPtStartDelayMs(int ms) async {
     _pttStartDelayMs = ms;
     await _prefs.setInt(_kPtStartDelayMs, ms);
+    notifyListeners();
+  }
+
+  Future<void> setTransmissionMode(int mode) async {
+    _transmissionMode = mode;
+    await _prefs.setInt(_kTransmissionMode, mode);
+    notifyListeners();
+  }
+
+  Future<void> setVadMethod(int method) async {
+    _vadMethod = method;
+    await _prefs.setInt(_kVadMethod, method);
+    notifyListeners();
+  }
+
+  Future<void> setVadThreshold(double threshold) async {
+    _vadThreshold = threshold;
+    await _prefs.setDouble(_kVadThreshold, threshold);
     notifyListeners();
   }
 }

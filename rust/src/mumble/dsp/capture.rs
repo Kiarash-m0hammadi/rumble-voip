@@ -1,9 +1,10 @@
 use crate::mumble::codec::opus::OpusEncoder;
-use crate::mumble::config::MumbleConfig;
+use crate::mumble::config::{MumbleConfig, TransmissionMode};
 use crate::mumble::dsp::{
     AudioPacket, INTERNAL_FRAME_MS, INTERNAL_FRAME_SIZE, INTERNAL_SAMPLE_RATE,
     MAX_OPUS_PACKET_SIZE, MAX_PACKET_SAMPLES,
 };
+use fvad::{Mode, Vad};
 use opus_head_sys::*;
 use sonora::config::{
     AdaptiveDigital, EchoCanceller, FixedDigital, GainController2, HighPassFilter, NoiseSuppression,
@@ -15,6 +16,7 @@ pub struct CapturePipeline {
     resampler: Option<PushSincResampler>,
     apm: AudioProcessing,
     encoder: OpusEncoder,
+    vad: Vad,
     // Captured PCM with in `input_bitrate`.
     // Buffer size of 8192 accommodates maximum 120ms frames at 48kHz (5760 samples) safely.
     incoming_pcm_buffer: Box<heapless::Vec<f32, 8192>>,
@@ -24,6 +26,9 @@ pub struct CapturePipeline {
     outgoing_packet_sample_count: usize,
     // Number of input samples corresponding to 10ms.
     input_samples_per_10ms: usize,
+    // VAD state
+    voice_detected: bool,
+    hangover_frames: usize,
 }
 
 impl CapturePipeline {
@@ -60,6 +65,10 @@ impl CapturePipeline {
             .render_config(StreamConfig::new(INTERNAL_SAMPLE_RATE, 1))
             .build();
 
+        let mut vad = Vad::new_with_sample_rate(INTERNAL_SAMPLE_RATE.try_into().unwrap())
+            .expect("Failed to create VAD");
+        vad.set_mode(Mode::VeryAggressive);
+
         let mut opus_buf = Box::new(heapless::Vec::new());
         opus_buf
             .resize(MAX_OPUS_PACKET_SIZE, 0)
@@ -72,10 +81,13 @@ impl CapturePipeline {
             resampler,
             apm,
             encoder,
+            vad,
             incoming_pcm_buffer: Box::new(heapless::Vec::new()),
             opus_buf,
             outgoing_packet_sample_count,
             input_samples_per_10ms: input_samples_per_frame,
+            voice_detected: false,
+            hangover_frames: 0,
         }
     }
 
@@ -87,7 +99,9 @@ impl CapturePipeline {
 
     pub fn process(
         &mut self,
-        send_voice: bool,
+        mode: TransmissionMode,
+        vad_threshold: f32,
+        ptt_active: bool,
         aec_rx: &crossbeam_channel::Receiver<[f32; INTERNAL_FRAME_SIZE]>,
     ) -> heapless::Vec<AudioPacket, 16> {
         let mut packets = heapless::Vec::new();
@@ -100,6 +114,7 @@ impl CapturePipeline {
         while self.incoming_pcm_buffer.len() >= input_samples_per_packet {
             // Buffer for a single outgoing packet
             let mut packet_data = heapless::Vec::<f32, MAX_PACKET_SAMPLES>::new();
+            let mut any_voice_in_packet = false;
 
             for _ in 0..frames_per_packet {
                 // 1. Interleave reference frame processing for AEC.
@@ -125,11 +140,48 @@ impl CapturePipeline {
                     .process_capture_f32(&[&frame_48k], &mut [&mut processed_frame])
                     .expect("APM capture processing failed");
 
-                // Add to packet data if we are sending voice
-                if send_voice {
-                    packet_data
-                        .extend_from_slice(&processed_frame)
-                        .expect("Packet data overflow");
+                // Voice Activity Detection
+                let is_voice = match mode {
+                    TransmissionMode::PushToTalk => ptt_active,
+                    TransmissionMode::Continuous => true,
+                    TransmissionMode::VADThreshold => {
+                        let mut sum_sq = 0.0;
+                        for &s in &processed_frame {
+                            sum_sq += s * s;
+                        }
+                        let rms = (sum_sq / processed_frame.len() as f32).sqrt();
+                        rms > vad_threshold
+                    }
+                    TransmissionMode::VADAuto => {
+                        // WebRTC VAD works on 16-bit PCM
+                        let mut pcm_s16 = [0i16; INTERNAL_FRAME_SIZE];
+                        for (i, &s) in processed_frame.iter().enumerate() {
+                            pcm_s16[i] = (s * 32767.0).clamp(-32768.0, 32767.0) as i16;
+                        }
+                        self.vad.is_voice(&pcm_s16).unwrap_or(false)
+                    }
+                };
+
+                if is_voice {
+                    self.voice_detected = true;
+                    self.hangover_frames = 20; // 200ms hangover
+                } else if self.hangover_frames > 0 {
+                    self.hangover_frames -= 1;
+                } else {
+                    self.voice_detected = false;
+                }
+
+                // Add to packet data. We always add to keep the packet size constant if we decide to send it.
+                packet_data
+                    .extend_from_slice(&processed_frame)
+                    .expect("Packet data overflow");
+
+                if match mode {
+                    TransmissionMode::PushToTalk => ptt_active,
+                    TransmissionMode::Continuous => true,
+                    _ => self.voice_detected,
+                } {
+                    any_voice_in_packet = true;
                 }
 
                 // Remove frame from buffer
@@ -139,8 +191,8 @@ impl CapturePipeline {
                     .truncate(self.incoming_pcm_buffer.len() - self.input_samples_per_10ms);
             }
 
-            // Encode packet only if we are sending voice
-            if send_voice {
+            // Encode packet only if at least one frame in it had voice
+            if any_voice_in_packet {
                 if let Ok(len) = self.encoder.encode(
                     &packet_data,
                     self.outgoing_packet_sample_count,
