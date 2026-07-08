@@ -7,7 +7,19 @@ import '../frb_generated.dart';
 import 'hardware/audio.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
+enum TransmissionMode {
+  pushToTalk,
+  continuous,
+  vadThreshold,
+  vadAuto,
+}
+
 class MumbleConfig {
+  final TransmissionMode transmissionMode;
+
+  /// Threshold for VADThreshold mode (0.0 to 1.0)
+  final double vadThreshold;
+
   /// Target bitrate for the Opus encoder in bits per second (e.g. 72000).
   final int outgoingAudioBitrate;
 
@@ -34,6 +46,8 @@ class MumbleConfig {
   final bool echoCancellation;
 
   const MumbleConfig({
+    this.transmissionMode = TransmissionMode.pushToTalk,
+    this.vadThreshold = 0.1,
     required this.outgoingAudioBitrate,
     required this.outgoingAudioMsPerPacket,
     required this.incomingJitterBufferMs,
@@ -46,6 +60,8 @@ class MumbleConfig {
 
   @override
   int get hashCode =>
+      transmissionMode.hashCode ^
+      vadThreshold.hashCode ^
       outgoingAudioBitrate.hashCode ^
       outgoingAudioMsPerPacket.hashCode ^
       incomingJitterBufferMs.hashCode ^
@@ -60,6 +76,8 @@ class MumbleConfig {
       identical(this, other) ||
       other is MumbleConfig &&
           runtimeType == other.runtimeType &&
+          transmissionMode == other.transmissionMode &&
+          vadThreshold == other.vadThreshold &&
           outgoingAudioBitrate == other.outgoingAudioBitrate &&
           outgoingAudioMsPerPacket == other.outgoingAudioMsPerPacket &&
           incomingJitterBufferMs == other.incomingJitterBufferMs &&

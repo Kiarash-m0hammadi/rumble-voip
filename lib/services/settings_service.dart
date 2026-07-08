@@ -22,6 +22,7 @@ class SettingsService extends ChangeNotifier {
   static const String _kOutputVolume = 'output_volume';
   static const String _kIgnoreAccessibility = 'ignore_accessibility';
   static const String _kUserVolumes = 'user_volumes';
+  static const String _kLocalMutedUsers = 'local_muted_users';
   static const String _kShowVolumeIndicator = 'show_volume_indicator';
   static const String _kOutgoingAudioBitrate = 'outgoing_audio_bitrate';
   static const String _kOutgoingAudioMsPerPacket = 'outgoing_audio_ms_per_packet';
@@ -51,6 +52,7 @@ class SettingsService extends ChangeNotifier {
   bool _ignoreAccessibility;
   bool _showVolumeIndicator;
   final Map<String, double> _userVolumes;
+  final Set<String> _localMutedUsers;
   int _outgoingAudioBitrate;
   int _outgoingAudioMsPerPacket;
   int _incomingJitterBufferMs;
@@ -87,20 +89,27 @@ class SettingsService extends ChangeNotifier {
       _vadMethod = _prefs.getInt(_kVadMethod) ?? 0,
       _vadThreshold = _prefs.getDouble(_kVadThreshold) ?? 0.1,
       _hotkeyBindings = [],
-      _userVolumes = {} {
+      _userVolumes = {},
+      _localMutedUsers = {} {
     // Load user volumes
     final List<String>? userVols = _prefs.getStringList(_kUserVolumes);
     if (userVols != null) {
       for (final s in userVols) {
         final parts = s.split(':');
         if (parts.length == 2) {
-          final name = parts[0];
+          final name = Uri.decodeComponent(parts[0]);
           final vol = double.tryParse(parts[1]);
           if (vol != null) {
             _userVolumes[name] = vol;
           }
         }
       }
+    }
+
+    // Load local muted users
+    final List<String>? localMuted = _prefs.getStringList(_kLocalMutedUsers);
+    if (localMuted != null) {
+      _localMutedUsers.addAll(localMuted);
     }
 
     final String? customJson = _prefs.getString(_kCustomHotkey);
@@ -153,6 +162,7 @@ class SettingsService extends ChangeNotifier {
   double get vadThreshold => _vadThreshold;
   List<Map<String, dynamic>> get hotkeyBindings => List.unmodifiable(_hotkeyBindings);
   Map<String, double> get userVolumes => Map.unmodifiable(_userVolumes);
+  Set<String> get localMutedUsers => Set.unmodifiable(_localMutedUsers);
 
   double? get windowWidth => _prefs.getDouble(_kWindowWidth);
   double? get windowHeight => _prefs.getDouble(_kWindowHeight);
@@ -303,10 +313,25 @@ class SettingsService extends ChangeNotifier {
 
   Future<void> setUserVolume(String name, double volume) async {
     _userVolumes[name] = volume;
-    final List<String> userVols =
-        _userVolumes.entries.map((e) => '${e.key}:${e.value}').toList();
+    final List<String> userVols = _userVolumes.entries
+        .map((e) => '${Uri.encodeComponent(e.key)}:${e.value}')
+        .toList();
     await _prefs.setStringList(_kUserVolumes, userVols);
     notifyListeners();
+  }
+
+  Future<void> setLocalMute(String name, bool muted) async {
+    if (muted) {
+      _localMutedUsers.add(name);
+    } else {
+      _localMutedUsers.remove(name);
+    }
+    await _prefs.setStringList(_kLocalMutedUsers, _localMutedUsers.toList());
+    notifyListeners();
+  }
+
+  bool isLocalMuted(String name) {
+    return _localMutedUsers.contains(name);
   }
 
   double getUserVolume(String name) {
