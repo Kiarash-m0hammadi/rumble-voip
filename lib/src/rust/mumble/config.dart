@@ -8,6 +8,11 @@ import 'hardware/audio.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 class MumbleConfig {
+  final TransmissionMode transmissionMode;
+
+  /// Threshold for VADThreshold mode (0.0 to 1.0)
+  final double vadThreshold;
+
   /// Target bitrate for the Opus encoder in bits per second (e.g. 72000).
   final int outgoingAudioBitrate;
 
@@ -33,7 +38,15 @@ class MumbleConfig {
   /// Enable Acoustic Echo Cancellation (AEC)
   final bool echoCancellation;
 
+  /// Enable Noise Suppression (NS)
+  final bool noiseSuppression;
+
+  /// Enable Automatic Gain Control (AGC)
+  final bool automaticGainControl;
+
   const MumbleConfig({
+    required this.transmissionMode,
+    required this.vadThreshold,
     required this.outgoingAudioBitrate,
     required this.outgoingAudioMsPerPacket,
     required this.incomingJitterBufferMs,
@@ -42,10 +55,14 @@ class MumbleConfig {
     required this.captureHwBufferSize,
     this.captureDeviceId,
     required this.echoCancellation,
+    required this.noiseSuppression,
+    required this.automaticGainControl,
   });
 
   @override
   int get hashCode =>
+      transmissionMode.hashCode ^
+      vadThreshold.hashCode ^
       outgoingAudioBitrate.hashCode ^
       outgoingAudioMsPerPacket.hashCode ^
       incomingJitterBufferMs.hashCode ^
@@ -53,13 +70,17 @@ class MumbleConfig {
       playbackHwBufferSize.hashCode ^
       captureHwBufferSize.hashCode ^
       captureDeviceId.hashCode ^
-      echoCancellation.hashCode;
+      echoCancellation.hashCode ^
+      noiseSuppression.hashCode ^
+      automaticGainControl.hashCode;
 
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       other is MumbleConfig &&
           runtimeType == other.runtimeType &&
+          transmissionMode == other.transmissionMode &&
+          vadThreshold == other.vadThreshold &&
           outgoingAudioBitrate == other.outgoingAudioBitrate &&
           outgoingAudioMsPerPacket == other.outgoingAudioMsPerPacket &&
           incomingJitterBufferMs == other.incomingJitterBufferMs &&
@@ -67,5 +88,9 @@ class MumbleConfig {
           playbackHwBufferSize == other.playbackHwBufferSize &&
           captureHwBufferSize == other.captureHwBufferSize &&
           captureDeviceId == other.captureDeviceId &&
-          echoCancellation == other.echoCancellation;
+          echoCancellation == other.echoCancellation &&
+          noiseSuppression == other.noiseSuppression &&
+          automaticGainControl == other.automaticGainControl;
 }
+
+enum TransmissionMode { pushToTalk, continuous, vadThreshold, vadAuto }

@@ -305,6 +305,18 @@ impl RustAudioEngine {
             cfg.echo_cancellation = enabled;
         }
     }
+
+    pub fn set_noise_suppression(&self, enabled: bool) {
+        if let Ok(mut cfg) = self.config.lock() {
+            cfg.noise_suppression = enabled;
+        }
+    }
+
+    pub fn set_automatic_gain_control(&self, enabled: bool) {
+        if let Ok(mut cfg) = self.config.lock() {
+            cfg.automatic_gain_control = enabled;
+        }
+    }
 }
 
 pub fn list_audio_input_devices() -> Vec<AudioDevice> {
