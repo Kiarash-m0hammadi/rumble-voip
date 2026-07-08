@@ -51,7 +51,6 @@ class MumbleService extends ChangeNotifier with dumble.MumbleClientListener {
   int? _targetChannelId;
   void Function(MumbleServer)? onServerUpdated;
   bool _audioInitialized = false;
-  bool _echoCancellationEnabled = false;
 
   // Trackers to avoid adding duplicate listeners
   final Set<int> _trackedUserListeners = {};
@@ -91,7 +90,7 @@ class MumbleService extends ChangeNotifier with dumble.MumbleClientListener {
 
   bool get hasMicPermission => true; // For now
   String? get pttErrorMessage => _pttErrorMessage;
-  bool get echoCancellationEnabled => _echoCancellationEnabled;
+  bool get echoCancellationEnabled => _settings.echoCancellation;
 
   Stream<double> get volumeStream => const Stream.empty();
 
@@ -607,8 +606,20 @@ class MumbleService extends ChangeNotifier with dumble.MumbleClientListener {
   }
 
   void setEchoCancellation(bool enabled) {
-    _echoCancellationEnabled = enabled;
-    _rustEngine.setEchoCancellation(enabled: enabled);
+    _settings.setEchoCancellation(enabled);
+    updateAudioSettings();
+    notifyListeners();
+  }
+
+  void setNoiseSuppression(bool enabled) {
+    _settings.setNoiseSuppression(enabled);
+    updateAudioSettings();
+    notifyListeners();
+  }
+
+  void setAutomaticGainControl(bool enabled) {
+    _settings.setAutomaticGainControl(enabled);
+    updateAudioSettings();
     notifyListeners();
   }
 
@@ -705,7 +716,9 @@ class MumbleService extends ChangeNotifier with dumble.MumbleClientListener {
       captureHwBufferSize: const AudioBufferSize.default_(),
       captureDeviceId: captureDeviceId ?? captureDevice,
       playbackDeviceId: playbackDeviceId ?? playbackDevice,
-      echoCancellation: _echoCancellationEnabled,
+      echoCancellation: _settings.echoCancellation,
+      noiseSuppression: _settings.noiseSuppression,
+      automaticGainControl: _settings.automaticGainControl,
     );
     await _rustEngine.setConfig(config: bridgeConfig);
 

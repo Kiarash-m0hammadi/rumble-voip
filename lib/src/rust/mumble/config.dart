@@ -45,9 +45,17 @@ class MumbleConfig {
   /// Enable Acoustic Echo Cancellation (AEC)
   final bool echoCancellation;
 
+  /// Enable Noise Suppression (NS)
+  final bool noiseSuppression;
+
+  /// Enable Automatic Gain Control (AGC)
+  final bool automaticGainControl;
+
   const MumbleConfig({
     this.transmissionMode = TransmissionMode.pushToTalk,
     this.vadThreshold = 0.1,
+    required this.transmissionMode,
+    required this.vadThreshold,
     required this.outgoingAudioBitrate,
     required this.outgoingAudioMsPerPacket,
     required this.incomingJitterBufferMs,
@@ -56,6 +64,8 @@ class MumbleConfig {
     required this.captureHwBufferSize,
     this.captureDeviceId,
     required this.echoCancellation,
+    required this.noiseSuppression,
+    required this.automaticGainControl,
   });
 
   @override
@@ -69,7 +79,9 @@ class MumbleConfig {
       playbackHwBufferSize.hashCode ^
       captureHwBufferSize.hashCode ^
       captureDeviceId.hashCode ^
-      echoCancellation.hashCode;
+      echoCancellation.hashCode ^
+      noiseSuppression.hashCode ^
+      automaticGainControl.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -85,5 +97,9 @@ class MumbleConfig {
           playbackHwBufferSize == other.playbackHwBufferSize &&
           captureHwBufferSize == other.captureHwBufferSize &&
           captureDeviceId == other.captureDeviceId &&
-          echoCancellation == other.echoCancellation;
+          echoCancellation == other.echoCancellation &&
+          noiseSuppression == other.noiseSuppression &&
+          automaticGainControl == other.automaticGainControl;
 }
+
+enum TransmissionMode { pushToTalk, continuous, vadThreshold, vadAuto }
