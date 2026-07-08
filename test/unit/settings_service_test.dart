@@ -16,6 +16,18 @@ void main() {
       expect(settings.incomingJitterBufferMs, 40);
       expect(settings.rememberLastChannel, true);
       expect(settings.hideEmptyChannels, false);
+      expect(settings.showFloatingOverlay, true);
+    });
+
+    test('saves and loads floating overlay setting', () async {
+      SharedPreferences.setMockInitialValues({});
+      final prefs = await SharedPreferences.getInstance();
+      final settings = SettingsService(prefs);
+
+      expect(settings.showFloatingOverlay, true);
+      await settings.setShowFloatingOverlay(false);
+      expect(settings.showFloatingOverlay, false);
+      expect(prefs.getBool('show_floating_overlay'), false);
     });
 
     test('saves and loads input gain', () async {
