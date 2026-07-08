@@ -35,6 +35,7 @@ import 'package:rumble/services/connectivity_service.dart';
 import 'package:rumble/src/rust/frb_generated.dart';
 import 'package:rumble/utils/logger.dart';
 import 'package:rumble/components/loading_screen.dart';
+import 'package:rumble/components/floating_overlay.dart';
 
 // Brand Colors
 const kBrandGreen = Color(0xFF64FFDA);
@@ -178,9 +179,28 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<SettingsService>(
-      builder: (context, settings, _) => ShadApp(
-        builder: (context, child) => _WindowResizeListener(child: child!),
+    return Consumer2<SettingsService, MumbleService>(
+      builder: (context, settings, mumbleService, _) => ShadApp(
+        builder: (context, child) {
+          final isMobile = defaultTargetPlatform == TargetPlatform.android || defaultTargetPlatform == TargetPlatform.iOS;
+          final showOverlay = mumbleService.isConnected && settings.showFloatingOverlay && isMobile;
+
+          return Stack(
+            children: [
+              _WindowResizeListener(child: child!),
+              if (showOverlay)
+                FloatingOverlay(
+                  onMaximize: () {
+                    // Navigate to home screen if not already there
+                    final context = ShadApp.navigatorKey.currentContext;
+                    if (context != null) {
+                      Navigator.of(context).popUntil((route) => route.isFirst);
+                    }
+                  },
+                ),
+            ],
+          );
+        },
         title: 'Rumble',
         debugShowCheckedModeBanner: false,
         themeMode: settings.themeMode,
@@ -747,10 +767,10 @@ class _HomeScreenState extends State<HomeScreen> {
     final theme = ShadTheme.of(context);
     final isSlim = LayoutConstants.isSlim(context);
 
-    return SafeArea(
-      child: Scaffold(
-        backgroundColor: theme.colorScheme.background,
-        body: Column(
+    return Scaffold(
+      backgroundColor: theme.colorScheme.background,
+      body: SafeArea(
+        child: Column(
           children: [
             if (!connectivityService.isOnline)
               Container(
@@ -770,7 +790,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         strokeWidth: 2,
                         color: Colors.white,
                       ),
-                    ),
+                ),
                     const SizedBox(width: 10),
                     const Text(
                       'No internet connection. Waiting to reconnect...',
@@ -779,7 +799,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         fontSize: 12,
                         fontWeight: FontWeight.w500,
                       ),
-                    ),
+                ),
                   ],
                 ),
               ),
@@ -808,11 +828,11 @@ class _HomeScreenState extends State<HomeScreen> {
                           defaultSize: .3,
                           minSize: .2,
                           child: ChannelTree(
-                            channels: mumbleService.channels,
-                            users: mumbleService.users,
-                            talkingUsers: mumbleService.talkingUsers,
-                            self: mumbleService.self,
-                            hasMicPermission: mumbleService.hasMicPermission,
+                        channels: mumbleService.channels,
+                        users: mumbleService.users,
+                        talkingUsers: mumbleService.talkingUsers,
+                        self: mumbleService.self,
+                        hasMicPermission: mumbleService.hasMicPermission,
                             onChannelTap: (c) =>
                                 mumbleService.joinChannel(c.id),
                           ),

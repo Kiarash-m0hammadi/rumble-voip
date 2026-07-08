@@ -112,6 +112,25 @@ class GeneralTab extends StatelessWidget {
               ),
             ],
           ),
+          const SizedBox(height: 12),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Expanded(child: Text('Show floating overlay (mobile)')),
+              const SizedBox(width: 8),
+              RumbleTooltip(
+                message:
+                    'Show a floating component for PTT and active speakers on mobile devices',
+                child: ShadSwitch(
+                  value: settings.showFloatingOverlay,
+                  onChanged: (val) {
+                    settings.setShowFloatingOverlay(val);
+                    onUpdate(() {});
+                  },
+                ),
+              ),
+            ],
+          ),
         ],
       ),
     );

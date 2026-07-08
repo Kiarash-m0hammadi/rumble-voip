@@ -37,6 +37,7 @@ class SettingsService extends ChangeNotifier {
   static const String _kEchoCancellation = 'echo_cancellation';
   static const String _kNoiseSuppression = 'noise_suppression';
   static const String _kAutomaticGainControl = 'automatic_gain_control';
+  static const String _kShowFloatingOverlay = 'show_floating_overlay';
 
   final SharedPreferences _prefs;
 
@@ -68,6 +69,7 @@ class SettingsService extends ChangeNotifier {
   bool _echoCancellation;
   bool _noiseSuppression;
   bool _automaticGainControl;
+  bool _showFloatingOverlay;
 
   SettingsService(this._prefs)
     : _pttKey = PttKey.values[_prefs.getInt(_kPttKey) ?? 0],
@@ -95,6 +97,7 @@ class SettingsService extends ChangeNotifier {
       _echoCancellation = _prefs.getBool(_kEchoCancellation) ?? true,
       _noiseSuppression = _prefs.getBool(_kNoiseSuppression) ?? true,
       _automaticGainControl = _prefs.getBool(_kAutomaticGainControl) ?? true,
+      _showFloatingOverlay = _prefs.getBool(_kShowFloatingOverlay) ?? true,
       _hotkeyBindings = [],
       _userVolumes = {} {
     // Load user volumes
@@ -163,6 +166,7 @@ class SettingsService extends ChangeNotifier {
   bool get echoCancellation => _echoCancellation;
   bool get noiseSuppression => _noiseSuppression;
   bool get automaticGainControl => _automaticGainControl;
+  bool get showFloatingOverlay => _showFloatingOverlay;
   List<Map<String, dynamic>> get hotkeyBindings => List.unmodifiable(_hotkeyBindings);
   Map<String, double> get userVolumes => Map.unmodifiable(_userVolumes);
 
@@ -406,6 +410,12 @@ class SettingsService extends ChangeNotifier {
   Future<void> setAutomaticGainControl(bool enabled) async {
     _automaticGainControl = enabled;
     await _prefs.setBool(_kAutomaticGainControl, enabled);
+    notifyListeners();
+  }
+
+  Future<void> setShowFloatingOverlay(bool enabled) async {
+    _showFloatingOverlay = enabled;
+    await _prefs.setBool(_kShowFloatingOverlay, enabled);
     notifyListeners();
   }
 }
