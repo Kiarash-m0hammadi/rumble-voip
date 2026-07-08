@@ -4,7 +4,7 @@ use crate::mumble::dsp::{
     AudioPacket, INTERNAL_FRAME_MS, INTERNAL_FRAME_SIZE, INTERNAL_SAMPLE_RATE,
     MAX_OPUS_PACKET_SIZE, MAX_PACKET_SAMPLES,
 };
-use fvad::{Mode, Vad};
+use fvad::{Fvad, Mode, SampleRate};
 use opus_head_sys::*;
 use sonora::config::{
     AdaptiveDigital, EchoCanceller, FixedDigital, GainController2, HighPassFilter, NoiseSuppression,
@@ -16,7 +16,7 @@ pub struct CapturePipeline {
     resampler: Option<PushSincResampler>,
     apm: AudioProcessing,
     encoder: OpusEncoder,
-    vad: Vad,
+    vad: Fvad,
     // Captured PCM with in `input_bitrate`.
     // Buffer size of 8192 accommodates maximum 120ms frames at 48kHz (5760 samples) safely.
     incoming_pcm_buffer: Box<heapless::Vec<f32, 8192>>,
@@ -57,7 +57,11 @@ impl CapturePipeline {
             None
         };
 
-        let apm_config = Self::build_apm_config(config.echo_cancellation);
+        let apm_config = Self::build_apm_config(
+            config.echo_cancellation,
+            config.noise_suppression,
+            config.automatic_gain_control,
+        );
 
         let apm = AudioProcessing::builder()
             .config(apm_config)
@@ -65,9 +69,10 @@ impl CapturePipeline {
             .render_config(StreamConfig::new(INTERNAL_SAMPLE_RATE, 1))
             .build();
 
-        let mut vad = Vad::new_with_sample_rate(INTERNAL_SAMPLE_RATE.try_into().unwrap())
-            .expect("Failed to create VAD");
-        vad.set_mode(Mode::VeryAggressive);
+        let vad = Fvad::new()
+            .expect("Failed to create VAD")
+            .set_sample_rate(SampleRate::try_from(INTERNAL_SAMPLE_RATE).unwrap())
+            .set_mode(Mode::VeryAggressive);
 
         let mut opus_buf = Box::new(heapless::Vec::new());
         opus_buf
@@ -158,7 +163,7 @@ impl CapturePipeline {
                         for (i, &s) in processed_frame.iter().enumerate() {
                             pcm_s16[i] = (s * 32767.0).clamp(-32768.0, 32767.0) as i16;
                         }
-                        self.vad.is_voice(&pcm_s16).unwrap_or(false)
+                        self.vad.is_voice_frame(&pcm_s16).unwrap_or(false)
                     }
                 };
 
@@ -227,8 +232,17 @@ impl CapturePipeline {
         self.reset_encoder();
     }
 
-    pub fn set_echo_cancellation(&mut self, enabled: bool) {
-        self.apm.apply_config(Self::build_apm_config(enabled));
+    pub fn update_apm_config(
+        &mut self,
+        echo_cancellation: bool,
+        noise_suppression: bool,
+        automatic_gain_control: bool,
+    ) {
+        self.apm.apply_config(Self::build_apm_config(
+            echo_cancellation,
+            noise_suppression,
+            automatic_gain_control,
+        ));
     }
 
     pub fn process_reverse(&mut self, frame: &[f32; INTERNAL_FRAME_SIZE]) {
@@ -238,19 +252,31 @@ impl CapturePipeline {
             .expect("AEC reverse processing failed");
     }
 
-    fn build_apm_config(echo_cancellation: bool) -> Config {
+    fn build_apm_config(
+        echo_cancellation: bool,
+        noise_suppression: bool,
+        automatic_gain_control: bool,
+    ) -> Config {
         Config {
             echo_canceller: if echo_cancellation {
                 Some(EchoCanceller::default())
             } else {
                 None
             },
-            noise_suppression: Some(NoiseSuppression::default()),
-            gain_controller2: Some(GainController2 {
-                fixed_digital: FixedDigital { gain_db: 12.0 },
-                adaptive_digital: Some(AdaptiveDigital::default()),
-                ..GainController2::default()
-            }),
+            noise_suppression: if noise_suppression {
+                Some(NoiseSuppression::default())
+            } else {
+                None
+            },
+            gain_controller2: if automatic_gain_control {
+                Some(GainController2 {
+                    fixed_digital: FixedDigital { gain_db: 12.0 },
+                    adaptive_digital: Some(AdaptiveDigital::default()),
+                    ..GainController2::default()
+                })
+            } else {
+                None
+            },
             high_pass_filter: Some(HighPassFilter::default()),
             ..Default::default()
         }

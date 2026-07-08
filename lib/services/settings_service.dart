@@ -34,6 +34,9 @@ class SettingsService extends ChangeNotifier {
   static const String _kTransmissionMode = 'transmission_mode';
   static const String _kVadMethod = 'vad_method';
   static const String _kVadThreshold = 'vad_threshold';
+  static const String _kEchoCancellation = 'echo_cancellation';
+  static const String _kNoiseSuppression = 'noise_suppression';
+  static const String _kAutomaticGainControl = 'automatic_gain_control';
 
   final SharedPreferences _prefs;
 
@@ -62,6 +65,9 @@ class SettingsService extends ChangeNotifier {
   int _transmissionMode; // 0: PTT, 1: Always Send, 2: Auto-Activate
   int _vadMethod; // 0: Threshold, 1: AI
   double _vadThreshold;
+  bool _echoCancellation;
+  bool _noiseSuppression;
+  bool _automaticGainControl;
 
   SettingsService(this._prefs)
     : _pttKey = PttKey.values[_prefs.getInt(_kPttKey) ?? 0],
@@ -86,6 +92,9 @@ class SettingsService extends ChangeNotifier {
       _transmissionMode = _prefs.getInt(_kTransmissionMode) ?? 0,
       _vadMethod = _prefs.getInt(_kVadMethod) ?? 0,
       _vadThreshold = _prefs.getDouble(_kVadThreshold) ?? 0.1,
+      _echoCancellation = _prefs.getBool(_kEchoCancellation) ?? true,
+      _noiseSuppression = _prefs.getBool(_kNoiseSuppression) ?? true,
+      _automaticGainControl = _prefs.getBool(_kAutomaticGainControl) ?? true,
       _hotkeyBindings = [],
       _userVolumes = {} {
     // Load user volumes
@@ -151,6 +160,9 @@ class SettingsService extends ChangeNotifier {
   int get transmissionMode => _transmissionMode;
   int get vadMethod => _vadMethod;
   double get vadThreshold => _vadThreshold;
+  bool get echoCancellation => _echoCancellation;
+  bool get noiseSuppression => _noiseSuppression;
+  bool get automaticGainControl => _automaticGainControl;
   List<Map<String, dynamic>> get hotkeyBindings => List.unmodifiable(_hotkeyBindings);
   Map<String, double> get userVolumes => Map.unmodifiable(_userVolumes);
 
@@ -376,6 +388,24 @@ class SettingsService extends ChangeNotifier {
   Future<void> setVadThreshold(double threshold) async {
     _vadThreshold = threshold;
     await _prefs.setDouble(_kVadThreshold, threshold);
+    notifyListeners();
+  }
+
+  Future<void> setEchoCancellation(bool enabled) async {
+    _echoCancellation = enabled;
+    await _prefs.setBool(_kEchoCancellation, enabled);
+    notifyListeners();
+  }
+
+  Future<void> setNoiseSuppression(bool enabled) async {
+    _noiseSuppression = enabled;
+    await _prefs.setBool(_kNoiseSuppression, enabled);
+    notifyListeners();
+  }
+
+  Future<void> setAutomaticGainControl(bool enabled) async {
+    _automaticGainControl = enabled;
+    await _prefs.setBool(_kAutomaticGainControl, enabled);
     notifyListeners();
   }
 }
