@@ -63,6 +63,7 @@ void main() {
         isMuted: false,
         isDeafened: false,
         isSuppressed: false,
+        isRegistered: false,
       );
 
       await tester.pumpWidget(
@@ -117,6 +118,7 @@ void main() {
         isMuted: false,
         isDeafened: false,
         isSuppressed: false,
+        isRegistered: false,
       );
 
       settingsService.setHideEmptyChannels(true);

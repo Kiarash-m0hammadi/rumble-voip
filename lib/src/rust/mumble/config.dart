@@ -7,6 +7,13 @@ import '../frb_generated.dart';
 import 'hardware/audio.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
+enum TransmissionMode {
+  pushToTalk,
+  continuous,
+  vadThreshold,
+  vadAuto,
+}
+
 class MumbleConfig {
   final TransmissionMode transmissionMode;
 
@@ -45,6 +52,8 @@ class MumbleConfig {
   final bool automaticGainControl;
 
   const MumbleConfig({
+    this.transmissionMode = TransmissionMode.pushToTalk,
+    this.vadThreshold = 0.1,
     required this.transmissionMode,
     required this.vadThreshold,
     required this.outgoingAudioBitrate,

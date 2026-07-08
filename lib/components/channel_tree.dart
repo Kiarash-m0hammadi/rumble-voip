@@ -689,6 +689,7 @@ class _ChannelTreeState extends State<ChannelTree> {
     final bool isMe = widget.self?.session == u.session;
     final bool isSelected = _selectedUserSession == u.session;
     final bool isHovered = _hoveredUserSession == u.session;
+    final bool isLocalMuted = mumbleService.isLocalMuted(u);
     final bool isMuted = u.isMuted;
     final bool isDeaf = u.isDeafened;
     final bool isSuppressed = u.isSuppressed;
@@ -696,7 +697,7 @@ class _ChannelTreeState extends State<ChannelTree> {
     Color statusColor;
     if (isTalking) {
       statusColor = Colors.blue;
-    } else if (isSuppressed || isMuted || isDeaf) {
+    } else if (isSuppressed || isMuted || isDeaf || isLocalMuted) {
       statusColor = theme.colorScheme.destructive;
     } else {
       final bool hasMic = isMe ? widget.hasMicPermission : true;
@@ -870,6 +871,10 @@ class _ChannelTreeState extends State<ChannelTree> {
               ),
             ),
           ],
+          if (!isMe && (isHovered || isSelected)) ...[
+            const SizedBox(width: 8),
+            _buildQuickControls(context, u, isLocalMuted),
+          ],
         ],
       ),
     );
@@ -970,6 +975,65 @@ class _ChannelTreeState extends State<ChannelTree> {
         onExit: (_) => setState(() => _hoveredUserSession = null),
         child: content,
       ),
+    );
+  }
+
+  Widget _buildQuickControls(
+    BuildContext context,
+    MumbleUser user,
+    bool isLocalMuted,
+  ) {
+    final theme = ShadTheme.of(context);
+    final mumbleService = Provider.of<MumbleService>(context, listen: false);
+    final isMobile =
+        Platform.isAndroid || Platform.isIOS; // Simple mobile check
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        RumbleTooltip(
+          message: isLocalMuted ? 'Unmute User' : 'Mute User',
+          child: ShadIconButton.ghost(
+            width: 24,
+            height: 24,
+            padding: EdgeInsets.zero,
+            onPressed: () {
+              mumbleService.setLocalMute(user.session, !isLocalMuted);
+            },
+            icon: Icon(
+              isLocalMuted ? LucideIcons.volumeX : LucideIcons.volume2,
+              size: 14,
+              color: isLocalMuted
+                  ? theme.colorScheme.destructive
+                  : theme.colorScheme.primary,
+            ),
+          ),
+        ),
+        if (isMobile)
+          RumbleTooltip(
+            message: 'Adjust Volume',
+            child: ShadIconButton.ghost(
+              width: 24,
+              height: 24,
+              padding: EdgeInsets.zero,
+              onPressed: () => _showUserVolumeDialog(context, user),
+              icon: const Icon(LucideIcons.slidersHorizontal, size: 14),
+            ),
+          )
+        else
+          Container(
+            width: 80,
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            child: ShadSlider(
+              initialValue: mumbleService.getUserVolume(user),
+              min: 0.0,
+              max: 2.0,
+              onChanged: (v) {
+                mumbleService.setUserVolume(user.session, v);
+              },
+            ),
+          ),
+      ],
     );
   }
 
