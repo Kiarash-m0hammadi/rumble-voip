@@ -40,11 +40,15 @@ abstract class RustAudioEngine implements RustOpaqueInterface {
   factory RustAudioEngine() =>
       RustLib.instance.api.crateApiClientRustAudioEngineNew();
 
+  Future<void> setAutomaticGainControl({required bool enabled});
+
   Future<void> setConfig({required MumbleConfig config});
 
   Future<void> setEchoCancellation({required bool enabled});
 
   Future<void> setInputGain({required double gain});
+
+  Future<void> setNoiseSuppression({required bool enabled});
 
   Future<void> setOutputVolume({required double volume});
 

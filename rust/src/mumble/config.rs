@@ -39,6 +39,10 @@ pub struct MumbleConfig {
 
     /// Enable Acoustic Echo Cancellation (AEC)
     pub echo_cancellation: bool,
+    /// Enable Noise Suppression (NS)
+    pub noise_suppression: bool,
+    /// Enable Automatic Gain Control (AGC)
+    pub automatic_gain_control: bool,
 }
 
 impl Default for MumbleConfig {
@@ -54,6 +58,8 @@ impl Default for MumbleConfig {
             capture_device_id: None,
             playback_device_id: None,
             echo_cancellation: false,
+            noise_suppression: true,
+            automatic_gain_control: true,
         }
     }
 }

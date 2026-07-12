@@ -86,6 +86,8 @@ pub fn spawn_encode_thread(
         let mut pipeline = CapturePipeline::new(input_rate, &initial_config);
         let mut was_ptt = false;
         let mut last_aec = initial_config.echo_cancellation;
+        let mut last_ns = initial_config.noise_suppression;
+        let mut last_agc = initial_config.automatic_gain_control;
 
         loop {
             if input_notify.recv().is_err() {
@@ -98,11 +100,16 @@ pub fn spawn_encode_thread(
                 pipeline.push_pcm(&tmp[..popped]);
             }
 
-            // Sync AEC configuration
-            let current_aec = config_arc.lock().unwrap().echo_cancellation;
-            if current_aec != last_aec {
-                pipeline.set_echo_cancellation(current_aec);
+            // Sync APM configuration
+            let (current_aec, current_ns, current_agc) = {
+                let cfg = config_arc.lock().unwrap();
+                (cfg.echo_cancellation, cfg.noise_suppression, cfg.automatic_gain_control)
+            };
+            if current_aec != last_aec || current_ns != last_ns || current_agc != last_agc {
+                pipeline.update_apm_config(current_aec, current_ns, current_agc);
                 last_aec = current_aec;
+                last_ns = current_ns;
+                last_agc = current_agc;
             }
 
             // Also process injected debug samples

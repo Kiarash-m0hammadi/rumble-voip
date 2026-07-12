@@ -53,7 +53,6 @@ class MumbleService extends ChangeNotifier with dumble.MumbleClientListener {
   int? _targetChannelId;
   void Function(MumbleServer)? onServerUpdated;
   bool _audioInitialized = false;
-  bool _echoCancellationEnabled = false;
 
   // Trackers to avoid adding duplicate listeners
   final Set<int> _trackedUserListeners = {};
@@ -95,7 +94,7 @@ class MumbleService extends ChangeNotifier with dumble.MumbleClientListener {
 
   bool get hasMicPermission => true; // For now
   String? get pttErrorMessage => _pttErrorMessage;
-  bool get echoCancellationEnabled => _echoCancellationEnabled;
+  bool get echoCancellationEnabled => _settings.echoCancellation;
 
   Stream<double> get volumeStream => const Stream.empty();
 
@@ -458,6 +457,19 @@ class MumbleService extends ChangeNotifier with dumble.MumbleClientListener {
       }
       
       _users[u.session] = _mapUser(u);
+
+      // Apply persisted volume and local mute
+      if (u.session != _selfSession) {
+        final userName = u.name ?? 'Unknown';
+        if (_settings.isLocalMuted(userName)) {
+          _rustEngine.setUserVolume(sessionId: u.session, volume: 0.0);
+        } else {
+          _rustEngine.setUserVolume(
+            sessionId: u.session,
+            volume: _settings.getUserVolume(userName),
+          );
+        }
+      }
     }
     
     // Process self - prioritize the one in the user map to ensure consistency
@@ -579,11 +591,49 @@ class MumbleService extends ChangeNotifier with dumble.MumbleClientListener {
 
   void setUserVolume(int sessionId, double volume) {
     _rustEngine.setUserVolume(sessionId: sessionId, volume: volume);
+    final user = _users[sessionId];
+    if (user != null) {
+      _settings.setUserVolume(user.name ?? 'Unknown', volume);
+    }
+  }
+
+  void setLocalMute(int sessionId, bool muted) {
+    final user = _users[sessionId];
+    if (user != null) {
+      final userName = user.name ?? 'Unknown';
+      _settings.setLocalMute(userName, muted);
+      // We implement local mute by setting volume to 0 or restoring it
+      if (muted) {
+        _rustEngine.setUserVolume(sessionId: sessionId, volume: 0.0);
+      } else {
+        _rustEngine.setUserVolume(
+          sessionId: sessionId,
+          volume: _settings.getUserVolume(userName),
+        );
+      }
+      _syncUsers();
+    }
+  }
+
+  bool isLocalMuted(MumbleUser user) {
+    return _settings.isLocalMuted(user.name ?? 'Unknown');
   }
 
   void setEchoCancellation(bool enabled) {
-    _echoCancellationEnabled = enabled;
-    _rustEngine.setEchoCancellation(enabled: enabled);
+    _settings.setEchoCancellation(enabled);
+    updateAudioSettings();
+    notifyListeners();
+  }
+
+  void setNoiseSuppression(bool enabled) {
+    _settings.setNoiseSuppression(enabled);
+    updateAudioSettings();
+    notifyListeners();
+  }
+
+  void setAutomaticGainControl(bool enabled) {
+    _settings.setAutomaticGainControl(enabled);
+    updateAudioSettings();
     notifyListeners();
   }
 
@@ -680,7 +730,9 @@ class MumbleService extends ChangeNotifier with dumble.MumbleClientListener {
       captureHwBufferSize: const AudioBufferSize.default_(),
       captureDeviceId: captureDeviceId ?? captureDevice,
       playbackDeviceId: playbackDeviceId ?? playbackDevice,
-      echoCancellation: _echoCancellationEnabled,
+      echoCancellation: _settings.echoCancellation,
+      noiseSuppression: _settings.noiseSuppression,
+      automaticGainControl: _settings.automaticGainControl,
     );
     await _rustEngine.setConfig(config: bridgeConfig);
 

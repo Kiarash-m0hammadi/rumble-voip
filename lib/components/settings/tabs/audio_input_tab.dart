@@ -7,7 +7,7 @@ import 'package:shadcn_ui/shadcn_ui.dart';
 import 'package:rumble/components/rumble_tooltip.dart';
 
 // Component: audio-input-tab
-class AudioInputTab extends StatelessWidget {
+class AudioInputTab extends StatefulWidget {
   final SettingsService settings;
   final MumbleService mumbleService;
   final StateSetter onUpdate;
@@ -20,9 +20,19 @@ class AudioInputTab extends StatelessWidget {
   });
 
   @override
+  State<AudioInputTab> createState() => _AudioInputTabState();
+}
+
+class _AudioInputTabState extends State<AudioInputTab> {
+  bool _showAdvanced = false;
+
+  @override
   Widget build(BuildContext context) {
     final theme = ShadTheme.of(context);
     const double volumeMultiplier = 10.0;
+    final settings = widget.settings;
+    final mumbleService = widget.mumbleService;
+    final onUpdate = widget.onUpdate;
 
     return SingleChildScrollView(
       child: Column(
@@ -359,6 +369,87 @@ class AudioInputTab extends StatelessWidget {
               ),
             ],
           ),
+          const SizedBox(height: 24),
+          Row(
+            children: [
+              const Text(
+                'Echo Cancellation',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              const Spacer(),
+              ShadSwitch(
+                value: settings.echoCancellation,
+                onChanged: (v) {
+                  mumbleService.setEchoCancellation(v);
+                  onUpdate(() {});
+                },
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Reduces echo from your speakers being picked up by your microphone.',
+            style: theme.textTheme.muted.copyWith(fontSize: 12),
+          ),
+          const SizedBox(height: 16),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: ShadButton.ghost(
+              onPressed: () {
+                setState(() {
+                  _showAdvanced = !_showAdvanced;
+                });
+              },
+              size: ShadButtonSize.sm,
+              child: Text(_showAdvanced ? 'Hide Advanced' : 'Show Advanced'),
+            ),
+          ),
+          if (_showAdvanced) ...[
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                const Text(
+                  'Noise Suppression',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+                const Spacer(),
+                ShadSwitch(
+                  value: settings.noiseSuppression,
+                  onChanged: (v) {
+                    mumbleService.setNoiseSuppression(v);
+                    onUpdate(() {});
+                  },
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Reduces background noise.',
+              style: theme.textTheme.muted.copyWith(fontSize: 12),
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                const Text(
+                  'Automatic Gain Control',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+                const Spacer(),
+                ShadSwitch(
+                  value: settings.automaticGainControl,
+                  onChanged: (v) {
+                    mumbleService.setAutomaticGainControl(v);
+                    onUpdate(() {});
+                  },
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Automatically adjusts your microphone volume.',
+              style: theme.textTheme.muted.copyWith(fontSize: 12),
+            ),
+          ],
           const SizedBox(height: 24),
           const Text(
             'Microphone Test',

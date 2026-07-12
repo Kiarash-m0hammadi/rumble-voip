@@ -16,10 +16,13 @@ Future<void> setupTestDependencies() async {
 
   // Register fallback values for mocktail
   registerFallbackValue(const MumbleConfig(
+    transmissionMode: TransmissionMode.pushToTalk,
+    vadThreshold: 0.1,
     outgoingAudioBitrate: 0,
     outgoingAudioMsPerPacket: 0,
     incomingJitterBufferMs: 0,
     playbackHwBufferSize: AudioBufferSize.default_(),
     captureHwBufferSize: AudioBufferSize.default_(),
+    echoCancellation: false,
   ));
 }

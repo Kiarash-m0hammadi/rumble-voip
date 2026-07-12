@@ -68,7 +68,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.12.0';
 
   @override
-  int get rustContentHash => -1518870290;
+  int get rustContentHash => 2139598591;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -108,6 +108,11 @@ abstract class RustLibApi extends BaseApi {
 
   RustAudioEngine crateApiClientRustAudioEngineNew();
 
+  Future<void> crateApiClientRustAudioEngineSetAutomaticGainControl({
+    required RustAudioEngine that,
+    required bool enabled,
+  });
+
   Future<void> crateApiClientRustAudioEngineSetConfig({
     required RustAudioEngine that,
     required MumbleConfig config,
@@ -121,6 +126,11 @@ abstract class RustLibApi extends BaseApi {
   Future<void> crateApiClientRustAudioEngineSetInputGain({
     required RustAudioEngine that,
     required double gain,
+  });
+
+  Future<void> crateApiClientRustAudioEngineSetNoiseSuppression({
+    required RustAudioEngine that,
+    required bool enabled,
   });
 
   Future<void> crateApiClientRustAudioEngineSetOutputVolume({
@@ -401,6 +411,46 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "RustAudioEngine_new", argNames: []);
 
   @override
+  Future<void> crateApiClientRustAudioEngineSetAutomaticGainControl({
+    required RustAudioEngine that,
+    required bool enabled,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerRustAudioEngine(
+            that,
+            serializer,
+          );
+          sse_encode_bool(enabled, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 7,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: null,
+        ),
+        constMeta:
+            kCrateApiClientRustAudioEngineSetAutomaticGainControlConstMeta,
+        argValues: [that, enabled],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta
+  get kCrateApiClientRustAudioEngineSetAutomaticGainControlConstMeta =>
+      const TaskConstMeta(
+        debugName: "RustAudioEngine_set_automatic_gain_control",
+        argNames: ["that", "enabled"],
+      );
+
+  @override
   Future<void> crateApiClientRustAudioEngineSetConfig({
     required RustAudioEngine that,
     required MumbleConfig config,
@@ -417,7 +467,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 7,
+            funcId: 8,
             port: port_,
           );
         },
@@ -455,7 +505,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 8,
+            funcId: 9,
             port: port_,
           );
         },
@@ -494,7 +544,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 9,
+            funcId: 10,
             port: port_,
           );
         },
@@ -516,6 +566,45 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<void> crateApiClientRustAudioEngineSetNoiseSuppression({
+    required RustAudioEngine that,
+    required bool enabled,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_Auto_Ref_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerRustAudioEngine(
+            that,
+            serializer,
+          );
+          sse_encode_bool(enabled, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 11,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiClientRustAudioEngineSetNoiseSuppressionConstMeta,
+        argValues: [that, enabled],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta
+  get kCrateApiClientRustAudioEngineSetNoiseSuppressionConstMeta =>
+      const TaskConstMeta(
+        debugName: "RustAudioEngine_set_noise_suppression",
+        argNames: ["that", "enabled"],
+      );
+
+  @override
   Future<void> crateApiClientRustAudioEngineSetOutputVolume({
     required RustAudioEngine that,
     required double volume,
@@ -532,7 +621,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 10,
+            funcId: 12,
             port: port_,
           );
         },
@@ -570,7 +659,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 11,
+            funcId: 13,
             port: port_,
           );
         },
@@ -610,7 +699,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 12,
+            funcId: 14,
             port: port_,
           );
         },
@@ -640,7 +729,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 13,
+            funcId: 15,
             port: port_,
           );
         },
@@ -667,7 +756,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 14,
+            funcId: 16,
             port: port_,
           );
         },
@@ -694,7 +783,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 15,
+            funcId: 17,
             port: port_,
           );
         },
@@ -721,7 +810,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 16,
+            funcId: 18,
             port: port_,
           );
         },
@@ -748,7 +837,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 17,
+            funcId: 19,
             port: port_,
           );
         },
@@ -952,17 +1041,21 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   MumbleConfig dco_decode_mumble_config(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 8)
-      throw Exception('unexpected arr length: expect 8 but see ${arr.length}');
+    if (arr.length != 12)
+      throw Exception('unexpected arr length: expect 12 but see ${arr.length}');
     return MumbleConfig(
-      outgoingAudioBitrate: dco_decode_u_32(arr[0]),
-      outgoingAudioMsPerPacket: dco_decode_u_32(arr[1]),
-      incomingJitterBufferMs: dco_decode_u_32(arr[2]),
-      playbackDeviceId: dco_decode_opt_String(arr[3]),
-      playbackHwBufferSize: dco_decode_audio_buffer_size(arr[4]),
-      captureHwBufferSize: dco_decode_audio_buffer_size(arr[5]),
-      captureDeviceId: dco_decode_opt_String(arr[6]),
-      echoCancellation: dco_decode_bool(arr[7]),
+      transmissionMode: dco_decode_transmission_mode(arr[0]),
+      vadThreshold: dco_decode_f_32(arr[1]),
+      outgoingAudioBitrate: dco_decode_u_32(arr[2]),
+      outgoingAudioMsPerPacket: dco_decode_u_32(arr[3]),
+      incomingJitterBufferMs: dco_decode_u_32(arr[4]),
+      playbackDeviceId: dco_decode_opt_String(arr[5]),
+      playbackHwBufferSize: dco_decode_audio_buffer_size(arr[6]),
+      captureHwBufferSize: dco_decode_audio_buffer_size(arr[7]),
+      captureDeviceId: dco_decode_opt_String(arr[8]),
+      echoCancellation: dco_decode_bool(arr[9]),
+      noiseSuppression: dco_decode_bool(arr[10]),
+      automaticGainControl: dco_decode_bool(arr[11]),
     );
   }
 
@@ -1003,6 +1096,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   Uint8List? dco_decode_opt_list_prim_u_8_strict(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw == null ? null : dco_decode_list_prim_u_8_strict(raw);
+  }
+
+  @protected
+  TransmissionMode dco_decode_transmission_mode(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return TransmissionMode.values[raw as int];
   }
 
   @protected
@@ -1240,6 +1339,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   @protected
   MumbleConfig sse_decode_mumble_config(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_transmissionMode = sse_decode_transmission_mode(deserializer);
+    var var_vadThreshold = sse_decode_f_32(deserializer);
     var var_outgoingAudioBitrate = sse_decode_u_32(deserializer);
     var var_outgoingAudioMsPerPacket = sse_decode_u_32(deserializer);
     var var_incomingJitterBufferMs = sse_decode_u_32(deserializer);
@@ -1248,7 +1349,11 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_captureHwBufferSize = sse_decode_audio_buffer_size(deserializer);
     var var_captureDeviceId = sse_decode_opt_String(deserializer);
     var var_echoCancellation = sse_decode_bool(deserializer);
+    var var_noiseSuppression = sse_decode_bool(deserializer);
+    var var_automaticGainControl = sse_decode_bool(deserializer);
     return MumbleConfig(
+      transmissionMode: var_transmissionMode,
+      vadThreshold: var_vadThreshold,
       outgoingAudioBitrate: var_outgoingAudioBitrate,
       outgoingAudioMsPerPacket: var_outgoingAudioMsPerPacket,
       incomingJitterBufferMs: var_incomingJitterBufferMs,
@@ -1257,6 +1362,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       captureHwBufferSize: var_captureHwBufferSize,
       captureDeviceId: var_captureDeviceId,
       echoCancellation: var_echoCancellation,
+      noiseSuppression: var_noiseSuppression,
+      automaticGainControl: var_automaticGainControl,
     );
   }
 
@@ -1320,6 +1427,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     } else {
       return null;
     }
+  }
+
+  @protected
+  TransmissionMode sse_decode_transmission_mode(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var inner = sse_decode_i_32(deserializer);
+    return TransmissionMode.values[inner];
   }
 
   @protected
@@ -1581,6 +1695,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   @protected
   void sse_encode_mumble_config(MumbleConfig self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_transmission_mode(self.transmissionMode, serializer);
+    sse_encode_f_32(self.vadThreshold, serializer);
     sse_encode_u_32(self.outgoingAudioBitrate, serializer);
     sse_encode_u_32(self.outgoingAudioMsPerPacket, serializer);
     sse_encode_u_32(self.incomingJitterBufferMs, serializer);
@@ -1589,6 +1705,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_audio_buffer_size(self.captureHwBufferSize, serializer);
     sse_encode_opt_String(self.captureDeviceId, serializer);
     sse_encode_bool(self.echoCancellation, serializer);
+    sse_encode_bool(self.noiseSuppression, serializer);
+    sse_encode_bool(self.automaticGainControl, serializer);
   }
 
   @protected
@@ -1638,6 +1756,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     if (self != null) {
       sse_encode_list_prim_u_8_strict(self, serializer);
     }
+  }
+
+  @protected
+  void sse_encode_transmission_mode(
+    TransmissionMode self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.index, serializer);
   }
 
   @protected
@@ -1719,6 +1846,12 @@ class RustAudioEngineImpl extends RustOpaque implements RustAudioEngine {
     decryptNonce: decryptNonce,
   );
 
+  Future<void> setAutomaticGainControl({required bool enabled}) =>
+      RustLib.instance.api.crateApiClientRustAudioEngineSetAutomaticGainControl(
+        that: this,
+        enabled: enabled,
+      );
+
   Future<void> setConfig({required MumbleConfig config}) => RustLib.instance.api
       .crateApiClientRustAudioEngineSetConfig(that: this, config: config);
 
@@ -1730,6 +1863,12 @@ class RustAudioEngineImpl extends RustOpaque implements RustAudioEngine {
 
   Future<void> setInputGain({required double gain}) => RustLib.instance.api
       .crateApiClientRustAudioEngineSetInputGain(that: this, gain: gain);
+
+  Future<void> setNoiseSuppression({required bool enabled}) =>
+      RustLib.instance.api.crateApiClientRustAudioEngineSetNoiseSuppression(
+        that: this,
+        enabled: enabled,
+      );
 
   Future<void> setOutputVolume({required double volume}) => RustLib.instance.api
       .crateApiClientRustAudioEngineSetOutputVolume(that: this, volume: volume);
