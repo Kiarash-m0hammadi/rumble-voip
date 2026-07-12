@@ -27,6 +27,7 @@ class _ChatViewState extends State<ChatView> {
   bool _shouldAutoScroll = true;
   bool _isAutoScrolling = false;
   int _lastMessageCount = 0;
+  String _selectedTab = 'channel';
 
   @override
   void initState() {
@@ -38,7 +39,14 @@ class _ChatViewState extends State<ChatView> {
       _lastMessageCount = mumbleService.messages.length;
       mumbleService.clearUnreadCount();
       mumbleService.addListener(_onMessagesUpdated);
+      mumbleService.addListener(_onServiceChanged);
       _focusNode.onKeyEvent = _onKeyEvent;
+
+      if (mumbleService.selectedPmSession != null) {
+        setState(() {
+          _selectedTab = 'pm_${mumbleService.selectedPmSession}';
+        });
+      }
     });
   }
 
@@ -48,6 +56,7 @@ class _ChatViewState extends State<ChatView> {
     try {
       final mumbleService = context.read<MumbleService>();
       mumbleService.removeListener(_onMessagesUpdated);
+      mumbleService.removeListener(_onServiceChanged);
     } catch (_) {}
     _controller.dispose();
     _scrollController.removeListener(_scrollListener);
@@ -70,6 +79,28 @@ class _ChatViewState extends State<ChatView> {
     }
   }
 
+  void _onServiceChanged() {
+    if (!mounted) return;
+    final mumbleService = context.read<MumbleService>();
+    final session = mumbleService.selectedPmSession;
+    if (session != null) {
+      final newTab = 'pm_$session';
+      if (_selectedTab != newTab) {
+        setState(() {
+          _selectedTab = newTab;
+        });
+      }
+    } else if (_selectedTab.startsWith('pm_')) {
+      // If we were on a PM tab but no PM session is selected globally, we might stay there
+      // unless the session was actually closed.
+      if (!mumbleService.activePmSessions.contains(int.tryParse(_selectedTab.substring(3)))) {
+        setState(() {
+          _selectedTab = 'channel';
+        });
+      }
+    }
+  }
+
   void _onMessagesUpdated() {
     if (!mounted) return;
     final mumbleService = context.read<MumbleService>();
@@ -77,8 +108,18 @@ class _ChatViewState extends State<ChatView> {
 
     // Only act if messages were actually added
     if (newCount > _lastMessageCount) {
+      final lastMessage = mumbleService.messages.last;
+
       _lastMessageCount = newCount;
-      mumbleService.clearUnreadCount();
+      if (lastMessage.isPrivate &&
+          !lastMessage.isSelf &&
+          _selectedTab != 'pm_${lastMessage.partnerSession}' &&
+          !(widget.poppedOutSessions?.contains(lastMessage.partnerSession) ??
+              false)) {
+        // PM received but not in focus, and not popped out
+      } else {
+        mumbleService.clearUnreadCount();
+      }
       if (_shouldAutoScroll) {
         _scrollToBottom();
       }
@@ -88,7 +129,14 @@ class _ChatViewState extends State<ChatView> {
   void _sendMessage() {
     final text = _controller.text.trim();
     if (text.isNotEmpty) {
-      context.read<MumbleService>().sendMessage(text);
+      final recipientSession =
+          _selectedTab.startsWith('pm_')
+              ? int.tryParse(_selectedTab.substring(3))
+              : null;
+      context.read<MumbleService>().sendMessage(
+        text,
+        recipientSession: recipientSession,
+      );
       _controller.clear();
       _scrollToBottom();
     }
@@ -186,15 +234,28 @@ class _ChatViewState extends State<ChatView> {
   Widget build(BuildContext context) {
     final theme = ShadTheme.of(context);
     final mumbleService = context.watch<MumbleService>();
-    final messages = mumbleService.messages;
     final isSlim = LayoutConstants.isSlim(context);
+
+    final List<ChatMessage> filteredMessages;
+    if (_selectedTab == 'channel') {
+      filteredMessages =
+          mumbleService.messages.where((m) => !m.isPrivate).toList();
+    } else if (_selectedTab.startsWith('pm_')) {
+      final session = int.tryParse(_selectedTab.substring(3));
+      filteredMessages =
+          mumbleService.messages
+              .where((m) => m.isPrivate && m.partnerSession == session)
+              .toList();
+    } else {
+      filteredMessages = [];
+    }
 
     return Stack(
       children: [
         Column(
           children: [
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              width: double.infinity,
               decoration: BoxDecoration(
                 border: Border(
                   bottom: BorderSide(
@@ -202,26 +263,36 @@ class _ChatViewState extends State<ChatView> {
                   ),
                 ),
               ),
-              child: Row(
-                children: [
-                  Icon(
-                    LucideIcons.messageSquare,
-                    size: 16,
-                    color: theme.colorScheme.primary,
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    mumbleService.currentChannelName,
-                    style: theme.textTheme.small.copyWith(
-                      fontWeight: FontWeight.bold,
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                child: Row(
+                  children: [
+                    _buildTab(
+                      id: 'channel',
+                      label: mumbleService.currentChannelName,
+                      icon: LucideIcons.hash,
+                      theme: theme,
                     ),
-                  ),
-                  const Spacer(),
-                  Text(
-                    '${messages.length} messages',
-                    style: theme.textTheme.muted.copyWith(fontSize: 10),
-                  ),
-                ],
+                    ...mumbleService.activePmSessions.map((session) {
+                      if (widget.poppedOutSessions?.contains(session) ?? false) {
+                        return const SizedBox.shrink();
+                      }
+                      final user = mumbleService.users.cast<MumbleUser?>().firstWhere(
+                        (u) => u?.session == session,
+                        orElse: () => null,
+                      );
+                      return _buildTab(
+                        id: 'pm_$session',
+                        label: user?.name ?? 'Unknown',
+                        icon: LucideIcons.user,
+                        theme: theme,
+                        onClose: () => mumbleService.closePmSession(session),
+                        onPopOut: () => widget.onPopOut?.call(session),
+                      );
+                    }),
+                  ],
+                ),
               ),
             ),
             Expanded(
@@ -233,9 +304,9 @@ class _ChatViewState extends State<ChatView> {
                         controller: _scrollController,
                         cacheExtent: 5000, // Force eager layout of images
                         padding: const EdgeInsets.all(16),
-                        itemCount: messages.length,
+                        itemCount: filteredMessages.length,
                         itemBuilder: (context, index) {
-                          final msg = messages[index];
+                          final msg = filteredMessages[index];
                           if (msg.isSystem) {
                             return Padding(
                               padding: const EdgeInsets.symmetric(vertical: 8),
@@ -258,10 +329,7 @@ class _ChatViewState extends State<ChatView> {
                                         fontStyle: FontStyle.italic,
                                       ),
                                       onTapImage: (imageData) {
-                                        final currentMessages = context
-                                            .read<MumbleService>()
-                                            .messages;
-                                        final allImages = currentMessages
+                                        final allImages = filteredMessages
                                             .expand(
                                               (m) =>
                                                   HtmlUtils.extractImageSources(
@@ -369,11 +437,8 @@ class _ChatViewState extends State<ChatView> {
                                             height: 1.4,
                                           ),
                                           onTapImage: (imageData) {
-                                            // Extract LATEST unique images from mumbleService.messages
-                                            final currentMessages = context
-                                                .read<MumbleService>()
-                                                .messages;
-                                            final allImages = currentMessages
+                                            // Extract LATEST unique images from filtered messages
+                                            final allImages = filteredMessages
                                                 .expand(
                                                   (m) =>
                                                       HtmlUtils.extractImageSources(
@@ -541,6 +606,101 @@ class _ChatViewState extends State<ChatView> {
             ),
           ),
       ],
+    );
+  }
+
+  Widget _buildTab({
+    required String id,
+    required String label,
+    required IconData icon,
+    required ShadThemeData theme,
+    VoidCallback? onClose,
+    VoidCallback? onPopOut,
+  }) {
+    final isSelected = _selectedTab == id;
+    return GestureDetector(
+      onTap: () {
+        setState(() => _selectedTab = id);
+        if (id.startsWith('pm_')) {
+          context.read<MumbleService>().selectPmSession(int.tryParse(id.substring(3)));
+        } else {
+          context.read<MumbleService>().selectPmSession(null);
+        }
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          border: Border(
+            bottom: BorderSide(
+              color: isSelected ? theme.colorScheme.primary : Colors.transparent,
+              width: 2,
+            ),
+          ),
+          color: isSelected
+              ? theme.colorScheme.primary.withValues(alpha: 0.05)
+              : Colors.transparent,
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon,
+              size: 14,
+              color: isSelected
+                  ? theme.colorScheme.primary
+                  : theme.colorScheme.mutedForeground,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              label,
+              style: theme.textTheme.small.copyWith(
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                color: isSelected
+                    ? theme.colorScheme.foreground
+                    : theme.colorScheme.mutedForeground,
+              ),
+            ),
+            if (onPopOut != null) ...[
+              const SizedBox(width: 8),
+              RumbleTooltip(
+                message: 'Pop out',
+                child: GestureDetector(
+                  onTap: () {
+                    onPopOut();
+                    if (_selectedTab == id) {
+                      setState(() => _selectedTab = 'channel');
+                    }
+                  },
+                  child: Icon(
+                    LucideIcons.externalLink,
+                    size: 12,
+                    color: theme.colorScheme.mutedForeground,
+                  ),
+                ),
+              ),
+            ],
+            if (onClose != null) ...[
+              const SizedBox(width: 8),
+              RumbleTooltip(
+                message: 'Close tab',
+                child: GestureDetector(
+                  onTap: () {
+                    onClose();
+                    if (_selectedTab == id) {
+                      setState(() => _selectedTab = 'channel');
+                    }
+                  },
+                  child: Icon(
+                    LucideIcons.x,
+                    size: 12,
+                    color: theme.colorScheme.mutedForeground,
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
     );
   }
 }

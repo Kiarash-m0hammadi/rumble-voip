@@ -943,7 +943,20 @@ class _ChannelTreeState extends State<ChannelTree> {
     }
 
     if (!isMe) {
-      contextMenuItems.add(
+      contextMenuItems.addAll([
+        _buildUserContextMenuItem(
+          context,
+          onPressed: () {
+            mumbleService.selectPmSession(u.session);
+            final settings = Provider.of<SettingsService>(context, listen: false);
+            if (!settings.showChat) {
+              settings.setShowChat(true);
+            }
+          },
+          leading: const Icon(LucideIcons.messageSquare, size: 16),
+          label: 'Message',
+          tooltip: 'Send a private message to this user.',
+        ),
         _buildUserContextMenuItem(
           context,
           onPressed: () => _showUserVolumeDialog(context, u),
@@ -951,7 +964,7 @@ class _ChannelTreeState extends State<ChannelTree> {
           label: 'Adjust User Volume',
           tooltip: 'Change playback volume for this user individually.',
         ),
-      );
+      ]);
     }
 
     if (contextMenuItems.isNotEmpty) {

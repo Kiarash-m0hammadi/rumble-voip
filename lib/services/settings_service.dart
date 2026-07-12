@@ -34,6 +34,7 @@ class SettingsService extends ChangeNotifier {
   static const String _kTransmissionMode = 'transmission_mode';
   static const String _kVadMethod = 'vad_method';
   static const String _kVadThreshold = 'vad_threshold';
+  static const String _kShowChat = 'show_chat';
 
   final SharedPreferences _prefs;
 
@@ -62,6 +63,7 @@ class SettingsService extends ChangeNotifier {
   int _transmissionMode; // 0: PTT, 1: Always Send, 2: Auto-Activate
   int _vadMethod; // 0: Threshold, 1: AI
   double _vadThreshold;
+  bool _showChat;
 
   SettingsService(this._prefs)
     : _pttKey = PttKey.values[_prefs.getInt(_kPttKey) ?? 0],
@@ -86,6 +88,7 @@ class SettingsService extends ChangeNotifier {
       _transmissionMode = _prefs.getInt(_kTransmissionMode) ?? 0,
       _vadMethod = _prefs.getInt(_kVadMethod) ?? 0,
       _vadThreshold = _prefs.getDouble(_kVadThreshold) ?? 0.1,
+      _showChat = _prefs.getBool(_kShowChat) ?? true,
       _hotkeyBindings = [],
       _userVolumes = {} {
     // Load user volumes
@@ -151,6 +154,7 @@ class SettingsService extends ChangeNotifier {
   int get transmissionMode => _transmissionMode;
   int get vadMethod => _vadMethod;
   double get vadThreshold => _vadThreshold;
+  bool get showChat => _showChat;
   List<Map<String, dynamic>> get hotkeyBindings => List.unmodifiable(_hotkeyBindings);
   Map<String, double> get userVolumes => Map.unmodifiable(_userVolumes);
 
@@ -376,6 +380,12 @@ class SettingsService extends ChangeNotifier {
   Future<void> setVadThreshold(double threshold) async {
     _vadThreshold = threshold;
     await _prefs.setDouble(_kVadThreshold, threshold);
+    notifyListeners();
+  }
+
+  Future<void> setShowChat(bool value) async {
+    _showChat = value;
+    await _prefs.setBool(_kShowChat, value);
     notifyListeners();
   }
 }
