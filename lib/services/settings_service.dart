@@ -35,6 +35,7 @@ class SettingsService extends ChangeNotifier {
   static const String _kTransmissionMode = 'transmission_mode';
   static const String _kVadMethod = 'vad_method';
   static const String _kVadThreshold = 'vad_threshold';
+  static const String _kShowChat = 'show_chat';
   static const String _kEchoCancellation = 'echo_cancellation';
   static const String _kNoiseSuppression = 'noise_suppression';
   static const String _kAutomaticGainControl = 'automatic_gain_control';
@@ -68,6 +69,7 @@ class SettingsService extends ChangeNotifier {
   int _transmissionMode; // 0: PTT, 1: Always Send, 2: Auto-Activate
   int _vadMethod; // 0: Threshold, 1: AI
   double _vadThreshold;
+  bool _showChat;
   bool _echoCancellation;
   bool _noiseSuppression;
   bool _automaticGainControl;
@@ -96,6 +98,7 @@ class SettingsService extends ChangeNotifier {
       _transmissionMode = _prefs.getInt(_kTransmissionMode) ?? 0,
       _vadMethod = _prefs.getInt(_kVadMethod) ?? 0,
       _vadThreshold = _prefs.getDouble(_kVadThreshold) ?? 0.1,
+      _showChat = _prefs.getBool(_kShowChat) ?? true,
       _echoCancellation = _prefs.getBool(_kEchoCancellation) ?? true,
       _noiseSuppression = _prefs.getBool(_kNoiseSuppression) ?? true,
       _automaticGainControl = _prefs.getBool(_kAutomaticGainControl) ?? true,
@@ -172,6 +175,7 @@ class SettingsService extends ChangeNotifier {
   int get transmissionMode => _transmissionMode;
   int get vadMethod => _vadMethod;
   double get vadThreshold => _vadThreshold;
+  bool get showChat => _showChat;
   bool get echoCancellation => _echoCancellation;
   bool get noiseSuppression => _noiseSuppression;
   bool get automaticGainControl => _automaticGainControl;
@@ -420,6 +424,9 @@ class SettingsService extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> setShowChat(bool value) async {
+    _showChat = value;
+    await _prefs.setBool(_kShowChat, value);
   Future<void> setEchoCancellation(bool enabled) async {
     _echoCancellation = enabled;
     await _prefs.setBool(_kEchoCancellation, enabled);

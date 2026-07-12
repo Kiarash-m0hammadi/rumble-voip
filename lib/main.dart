@@ -35,6 +35,7 @@ import 'package:rumble/services/connectivity_service.dart';
 import 'package:rumble/src/rust/frb_generated.dart';
 import 'package:rumble/utils/logger.dart';
 import 'package:rumble/components/loading_screen.dart';
+import 'package:rumble/components/floating_chat_panel.dart';
 import 'package:rumble/components/floating_overlay.dart';
 
 // Brand Colors
@@ -421,6 +422,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   String? _connectingServerId;
   final _volumePopoverController = ShadPopoverController();
+  final Set<int> _poppedOutSessions = {};
 
   @override
   void initState() {
@@ -820,6 +822,16 @@ class _HomeScreenState extends State<HomeScreen> {
                         onChannelTap: (c) => mumbleService.joinChannel(c.id),
                       );
                     }
+                    return Consumer<SettingsService>(
+                      builder: (context, settings, child) {
+                        if (!settings.showChat) {
+                          return ChannelTree(
+                            channels: mumbleService.channels,
+                            users: mumbleService.users,
+                            talkingUsers: mumbleService.talkingUsers,
+                            self: mumbleService.self,
+                            hasMicPermission:
+                                mumbleService.hasMicPermission,
                     return ShadResizablePanelGroup(
                       showHandle: true,
                       children: [
@@ -835,18 +847,45 @@ class _HomeScreenState extends State<HomeScreen> {
                         hasMicPermission: mumbleService.hasMicPermission,
                             onChannelTap: (c) =>
                                 mumbleService.joinChannel(c.id),
-                          ),
-                        ),
-                        ShadResizablePanel(
-                          id: 1,
-                          defaultSize: .7,
-                          minSize: .3,
-                          child: ColoredBox(
-                            color: theme.colorScheme.background,
-                            child: const ChatView(),
-                          ),
-                        ),
-                      ],
+                          );
+                        }
+                        return ShadResizablePanelGroup(
+                          showHandle: true,
+                          children: [
+                            ShadResizablePanel(
+                              id: 0,
+                              defaultSize: .3,
+                              minSize: .2,
+                              child: ChannelTree(
+                                channels: mumbleService.channels,
+                                users: mumbleService.users,
+                                talkingUsers: mumbleService.talkingUsers,
+                                self: mumbleService.self,
+                                hasMicPermission:
+                                    mumbleService.hasMicPermission,
+                                onChannelTap: (c) =>
+                                    mumbleService.joinChannel(c.id),
+                              ),
+                            ),
+                            ShadResizablePanel(
+                              id: 1,
+                              defaultSize: .7,
+                              minSize: .3,
+                              child: ColoredBox(
+                                color: theme.colorScheme.background,
+                                child: ChatView(
+                                  poppedOutSessions: _poppedOutSessions,
+                                  onPopOut: (session) {
+                                    setState(() {
+                                      _poppedOutSessions.add(session);
+                                    });
+                                  },
+                                ),
+                              ),
+                            ),
+                          ],
+                        );
+                      },
                     );
                   }
                   return _buildServerList(isSlim);
@@ -861,9 +900,43 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  Widget _buildUnreadBadge(int count, ShadThemeData theme) {
+    return Positioned(
+      right: 8,
+      top: 8,
+      child: Container(
+        padding: const EdgeInsets.all(2),
+        decoration: BoxDecoration(
+          color: theme.colorScheme.primary,
+          shape: BoxShape.circle,
+          border: Border.all(
+            color: theme.colorScheme.background,
+            width: 1.5,
+          ),
+        ),
+        constraints: const BoxConstraints(
+          minWidth: 16,
+          minHeight: 16,
+        ),
+        child: Center(
+          child: Text(
+            count > 9 ? '' : count.toString(),
+            style: TextStyle(
+              color: theme.colorScheme.primaryForeground,
+              fontSize: 10,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildHeader(MumbleService mumbleService, bool isSlim) {
     final theme = ShadTheme.of(context);
-    final showChatToggle = mumbleService.isConnected && isSlim;
+    final settings = Provider.of<SettingsService>(context);
+    final showChatSheetToggle = mumbleService.isConnected && isSlim;
+    final showChatPaneToggle = mumbleService.isConnected && !isSlim;
 
     return Container(
       padding: const EdgeInsets.only(left: 20, right: 8, top: 16, bottom: 12),
@@ -904,7 +977,27 @@ class _HomeScreenState extends State<HomeScreen> {
           ],
           const Spacer(),
           _buildVolumeControl(mumbleService),
-          if (showChatToggle)
+          if (showChatPaneToggle)
+            Stack(
+              clipBehavior: Clip.none,
+              children: [
+                RumbleTooltip(
+                  message: settings.showChat ? 'Hide Chat' : 'Show Chat',
+                  child: ShadIconButton.ghost(
+                    icon: Icon(
+                      settings.showChat
+                          ? LucideIcons.messageSquareOff
+                          : LucideIcons.messageSquare,
+                      size: 20,
+                    ),
+                    onPressed: () => settings.setShowChat(!settings.showChat),
+                  ),
+                ),
+                if (!settings.showChat && mumbleService.unreadMessagesCount > 0)
+                  _buildUnreadBadge(mumbleService.unreadMessagesCount, theme),
+              ],
+            ),
+          if (showChatSheetToggle)
             Stack(
               clipBehavior: Clip.none,
               children: [
@@ -916,37 +1009,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
                 if (mumbleService.unreadMessagesCount > 0)
-                  Positioned(
-                    right: 8,
-                    top: 8,
-                    child: Container(
-                      padding: const EdgeInsets.all(2),
-                      decoration: BoxDecoration(
-                        color: theme.colorScheme.primary,
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: theme.colorScheme.background,
-                          width: 1.5,
-                        ),
-                      ),
-                      constraints: const BoxConstraints(
-                        minWidth: 16,
-                        minHeight: 16,
-                      ),
-                      child: Center(
-                        child: Text(
-                          mumbleService.unreadMessagesCount > 9
-                              ? ''
-                              : mumbleService.unreadMessagesCount.toString(),
-                          style: TextStyle(
-                            color: theme.colorScheme.primaryForeground,
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
+                  _buildUnreadBadge(mumbleService.unreadMessagesCount, theme),
               ],
             ),
           if (mumbleService.isConnected)

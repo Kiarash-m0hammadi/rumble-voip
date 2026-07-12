@@ -43,6 +43,8 @@ class MumbleService extends ChangeNotifier with dumble.MumbleClientListener {
   final Map<int, MumbleUser> _users = {};
   final Set<int> _talkingUsers = {};
   final List<ChatMessage> _messages = [];
+  final Set<int> _activePmSessions = {};
+  int? _selectedPmSession;
   int? _selfSession;
   int _unreadMessagesCount = 0;
   bool _isLocalPttActive = false;
@@ -68,6 +70,8 @@ class MumbleService extends ChangeNotifier with dumble.MumbleClientListener {
   List<MumbleChannel> get channels => _channels;
   List<MumbleUser> get users => _users.values.toList();
   List<ChatMessage> get messages => _messages;
+  Set<int> get activePmSessions => _activePmSessions;
+  int? get selectedPmSession => _selectedPmSession;
   int get unreadMessagesCount => _unreadMessagesCount;
   int? get selfSession => _selfSession;
   Map<int, bool> get talkingUsers {
@@ -313,12 +317,22 @@ class MumbleService extends ChangeNotifier with dumble.MumbleClientListener {
 
   @override
   void onTextMessage(dumble.IncomingTextMessage message) {
+    // A message is private if it's not sent to any channel or tree
+    final bool isPrivate = message.channels.isEmpty && message.trees.isEmpty;
+    final int? partnerSession = isPrivate ? message.actor?.session : null;
+
+    if (isPrivate && partnerSession != null && partnerSession != _selfSession) {
+      _activePmSessions.add(partnerSession);
+    }
+
     _messages.add(
       ChatMessage(
         senderName: message.actor?.name ?? 'System',
         content: HtmlUtils.sanitizeMumbleHtml(message.message),
         timestamp: DateTime.now(),
         isSelf: message.actor?.session == _selfSession,
+        isPrivate: isPrivate,
+        senderSession: message.actor?.session,
       ),
     );
     if (message.actor?.session != _selfSession) {
@@ -773,7 +787,62 @@ class MumbleService extends ChangeNotifier with dumble.MumbleClientListener {
   void refreshInputDevices() => _refreshDevices();
   void refreshOutputDevices() => _refreshDevices();
   void clearPttErrorMessage() => _pttErrorMessage = null;
-  void sendMessage(String message) => sendTextMessage(message);
+
+  void sendMessage(String message, {int? recipientSession}) {
+    if (recipientSession != null) {
+      sendPrivateMessage(recipientSession, message);
+    } else {
+      sendTextMessage(message);
+    }
+  }
+
+  void sendPrivateMessage(int session, String message) {
+    if (_dumbleClient == null) return;
+    final user = _dumbleClient!.getUsers()[session];
+    if (user == null) return;
+
+    String sanitizedMessage = '';
+    if (message.isNotEmpty) {
+      final html = HtmlUtils.markdownToHtml(message);
+      sanitizedMessage = HtmlUtils.sanitizeMumbleHtml(html);
+
+      _dumbleClient!.sendMessage(
+        message: dumble.OutgoingTextMessage(
+          message: sanitizedMessage,
+          clients: [user],
+        ),
+      );
+    }
+
+    if (message.isNotEmpty) {
+      _messages.add(ChatMessage(
+        senderName: _dumbleClient!.self.name ?? 'Me',
+        content: sanitizedMessage,
+        timestamp: DateTime.now(),
+        isSelf: true,
+        isPrivate: true,
+        recipientSession: session,
+      ));
+    }
+    _activePmSessions.add(session);
+    notifyListeners();
+  }
+
+  void closePmSession(int session) {
+    _activePmSessions.remove(session);
+    if (_selectedPmSession == session) {
+      _selectedPmSession = null;
+    }
+    notifyListeners();
+  }
+
+  void selectPmSession(int? session) {
+    _selectedPmSession = session;
+    if (session != null) {
+      _activePmSessions.add(session);
+    }
+    notifyListeners();
+  }
 
   @override
   void dispose() {
